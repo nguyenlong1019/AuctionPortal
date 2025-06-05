@@ -7,7 +7,7 @@
     var selectedType = Request["auctionType"];
     var selectedDate = Request["date"];
 
-    var db = Database.Open("AuctionDB");
+    var db = Database.Open("AuctionPortalDB");
 
     var types = db.Query("SELECT auctionTypeID, typeName FROM AuctionTypes");
 

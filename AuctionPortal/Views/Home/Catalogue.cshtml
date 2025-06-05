@@ -4,7 +4,7 @@
 
 @using WebMatrix.Data;
 @{
-    var db = Database.Open("AuctionDB");
+    var db = Database.Open("AuctionPortalDB");
     var catalogueId = Request["catalogueID"];
     var catalogue = db.QuerySingle("SELECT catName, dateVisible FROM Catalogues WHERE catalogueID = @0", catalogueId);
     var search = Request["search"];
