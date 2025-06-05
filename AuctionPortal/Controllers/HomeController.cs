@@ -20,8 +20,9 @@ namespace AuctionPortal.Controllers
             return View();
         }
 
-        public ActionResult Lot(int catalogueId, int lotNo)
+        public ActionResult Lot(int catalogueId, string search, int lotNo)
         {
+            ViewBag.search = search;
             ViewBag.CatalogueId = catalogueId;
             ViewBag.lotNo = lotNo;
 

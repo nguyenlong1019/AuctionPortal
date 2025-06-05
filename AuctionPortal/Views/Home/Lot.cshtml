@@ -7,26 +7,45 @@
     var db = Database.Open("AuctionDB");
     var catalogueId = Request["catalogueID"];
     var lotNo = Request["lotNo"];
-    var catalogue = db.QuerySingle("SELECT catName, dateVisible FROM Catalogues WHERE catalogueID = @0", catalogueId);
     var search = Request["search"];
-    var lots = Enumerable.Empty<dynamic>();
-    if (!string.IsNullOrEmpty(search))
-    {
-        lots = db.Query(@"
-SELECT l.lotNo, l.lotTitle, l.lotDescription, l.minPrice, l.maxPrice, l.salePrice, l.bidderID,
-(SELECT TOP 1 imageUrl FROM LotImages i WHERE i.catalogueID = l.catalogueID AND i.lotNo = l.lotNo) AS lotImage
-FROM Lots l
-WHERE l.catalogueID = @0
-AND (LOWER(l.lotTitle) LIKE @1 OR LOWER(l.lotDescription) LIKE @1)
-ORDER BY l.lotNo", catalogueId, "%" + search.ToLower() + "%");
-    }
-    else
-    {
-        lots = db.Query(@"
-SELECT l.lotNo, l.lotTitle, l.lotDescription, l.minPrice, l.maxPrice, l.salePrice, l.bidderID,
-(SELECT TOP 1 imageUrl FROM LotImages i WHERE i.catalogueID = l.catalogueID AND i.lotNo = l.lotNo) AS lotImage
-FROM Lots l
-WHERE l.catalogueID = @0
-ORDER BY l.lotNo", catalogueId);
-    }
+    var lot = db.QuerySingle(@"
+        SELECT l.*, c.dateVisible
+        FROM Lots l
+        JOIN Catalogues c ON l.catalogueID = c.catalogueID
+        WHERE l.lotNo = @0", lotNo);
+
+    var images = db.Query("SELECT imageUrl FROM LotImages WHERE lotNo = @0 AND catalogueID = @1", lotNo, lot.catalogueID);
+
+    bool isSold = lot.salePrice != null && lot.bidderID != null;
+    bool isPassed = lot.salePrice == null && lot.bidderID == null && ((DateTime)lot.dateVisible) < DateTime.Now;
 }
+
+<div class="container my-4">
+    <a href="/Home/Catalogue?catalogueID=@catalogueId&search=@search" class="btn btn-secondary mb-3 mt-3">← Back to Catalogue</a>
+    <h2 class="mb-3">Lot @lot.lotNo – @lot.lotTitle</h2>
+
+    <p><strong>Range:</strong> $@lot.minPrice – $@lot.maxPrice</p>
+    <p><strong>Description:</strong> @lot.lotDescription</p>
+
+    <div class="mb-3">
+        @if (isSold)
+        {
+            <span class="badge bg-danger p-2">SOLD: $@lot.salePrice</span>
+        }
+        else if (isPassed)
+        {
+            <span class="badge bg-warning text-dark p-2">PASSED IN</span>
+        }
+    </div>
+
+    <div class="row g-3">
+        @foreach (var img in images)
+        {
+            <div class="col-md-4">
+                <img src="@img.imageUrl" class="img-fluid rounded shadow-sm" alt="Lot Image" />
+            </div>
+        }
+    </div>
+
+
+</div>
