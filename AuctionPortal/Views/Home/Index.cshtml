@@ -2,30 +2,77 @@
     ViewBag.Title = "Home Page";
 }
 
-<div class="jumbotron">
-    <h1>ASP.NET</h1>
-    <p class="lead">ASP.NET is a free web framework for building great Web sites and Web applications using HTML, CSS and JavaScript.</p>
-    <p><a href="https://asp.net" class="btn btn-primary btn-lg">Learn more &raquo;</a></p>
-</div>
+@using WebMatrix.Data
+@{
+    var selectedType = Request["auctionType"];
+    var types = new List<dynamic>();
+    var catalogues = new List<dynamic>();
 
-<div class="row">
+    using (var db = Database.Open("AuctionDB"))
+    {
+        types = db.Query("SELECT auctionTypeID FROM AuctionTypes").ToList();
+
+        var sql = @"
+            SELECT c.catalogueID, c.catName, c.catPhotoUrl, c.catDesc, c.dateVisible, a.auctionTypeID
+            FROM Catalogues c
+            JOIN Auctions a ON c.auctionID = a.auctionID
+            WHERE c.dateVisible >= GETDATE()
+        ";
+
+        if (!string.IsNullOrEmpty(selectedType))
+        {
+            sql += " AND a.auctionTypeID = @0 ORDER BY c.dateVisible DESC, c.catName";
+            catalogues = db.Query(sql, selectedType).ToList();
+        }
+        else
+        {
+            sql += " ORDER BY c.dateVisible DESC, c.catName";
+            catalogues = db.Query(sql).ToList();
+        }
+    }
+}
+
+<h2 class="mt-3">Upcoming Auction Catalogues</h2>
+
+<form method="get" class="mb-4 row g-3 needs-validation" novalidate>
     <div class="col-md-4">
-        <h2>Getting started</h2>
-        <p>
-            ASP.NET MVC gives you a powerful, patterns-based way to build dynamic websites that
-            enables a clean separation of concerns and gives you full control over markup
-            for enjoyable, agile development.
-        </p>
-        <p><a class="btn btn-default" href="https://go.microsoft.com/fwlink/?LinkId=301865">Learn more &raquo;</a></p>
+        <label for="auctionType" class="form-label">Filter by Auction Type</label>
+        <select class="form-select" id="auctionType" name="auctionType">
+            <option value="">All Types</option>
+            @foreach (var t in types)
+            {
+                <option value="@t.auctionTypeID" @(selectedType == t.auctionTypeID ? "selected" : "")>
+                    @t.auctionTypeID
+                </option>
+            }
+        </select>
     </div>
-    <div class="col-md-4">
-        <h2>Get more libraries</h2>
-        <p>NuGet is a free Visual Studio extension that makes it easy to add, remove, and update libraries and tools in Visual Studio projects.</p>
-        <p><a class="btn btn-default" href="https://go.microsoft.com/fwlink/?LinkId=301866">Learn more &raquo;</a></p>
+    <div class="col-md-2 align-self-end">
+        <button type="submit" class="btn btn-primary w-100">Search</button>
     </div>
-    <div class="col-md-4">
-        <h2>Web Hosting</h2>
-        <p>You can easily find a web hosting company that offers the right mix of features and price for your applications.</p>
-        <p><a class="btn btn-default" href="https://go.microsoft.com/fwlink/?LinkId=301867">Learn more &raquo;</a></p>
+</form>
+
+@if (catalogues.Any())
+{
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        @foreach (var c in catalogues)
+        {
+            <div class="col">
+                <div class="card h-100">
+                    <img src="@c.catPhotoUrl" class="card-img-top" alt="@c.catName" style="height: 200px; object-fit: cover;" />
+                    <div class="card-body">
+                        <h5 class="card-title">@c.catName</h5>
+                        <p class="card-text">@c.catDesc</p>
+                        <p><strong>Date Visible:</strong> @c.dateVisible.ToShortDateString()</p>
+                        <p><strong>Type:</strong> @c.auctionTypeID</p>
+                        <a href="/Home/Catalogue?id=@c.catalogueID" class="btn btn-outline-primary w-100">View Lots</a>
+                    </div>
+                </div>
+            </div>
+        }
     </div>
-</div>
+}
+else
+{
+    <div class="alert alert-warning mt-3">No matching catalogues found.</div>
+}
