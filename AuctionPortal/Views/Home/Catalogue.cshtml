@@ -2,4 +2,106 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
+@using WebMatrix.Data;
+@{
+    var db = Database.Open("AuctionDB");
+    var catalogueId = Request["catalogueID"];
+    var catalogue = db.QuerySingle("SELECT catName, dateVisible FROM Catalogues WHERE catalogueID = @0", catalogueId);
+    var search = Request["search"];
+    var lots = Enumerable.Empty<dynamic>();
+    if (!string.IsNullOrEmpty(search))
+    {
+        lots = db.Query(@"
+SELECT l.lotNo, l.lotTitle, l.lotDescription, l.minPrice, l.maxPrice, l.salePrice, l.bidderID,
+       (SELECT TOP 1 imageUrl FROM LotImages i WHERE i.catalogueID = l.catalogueID AND i.lotNo = l.lotNo) AS lotImage
+FROM Lots l
+WHERE l.catalogueID = @0
+  AND (LOWER(l.lotTitle) LIKE @1 OR LOWER(l.lotDescription) LIKE @1)
+ORDER BY l.lotNo", catalogueId, "%" + search.ToLower() + "%");
+    }
+    else
+    {
+        lots = db.Query(@"
+SELECT l.lotNo, l.lotTitle, l.lotDescription, l.minPrice, l.maxPrice, l.salePrice, l.bidderID,
+       (SELECT TOP 1 imageUrl FROM LotImages i WHERE i.catalogueID = l.catalogueID AND i.lotNo = l.lotNo) AS lotImage
+FROM Lots l
+WHERE l.catalogueID = @0
+ORDER BY l.lotNo", catalogueId);
+    }
+}
 
+@if (catalogue != null)
+{
+    <div class="text-center mb-3 mt-3">
+        <h2 class="mb-2">Catalogue: @catalogue.catName</h2>
+        <p><strong>Auction Date:</strong> @((DateTime)catalogue.dateVisible)</p>
+    </div>
+}
+else
+{
+    <div class="alert alert-danger">Invalid or missing catalogue ID.</div>
+}
+
+<form method="GET" class="row g-3 mb-4">
+    <input type="hidden" name="catalogueID" value="@catalogueId" />
+    <div class="col-5">
+        <input type="text" name="search" class="form-control" placeholder="Lot title/description search..." value="@Request["search"]" />
+    </div>
+    <div class="col-2">
+        <button type="submit" class="btn btn-primary">Search</button>
+    </div>
+</form>
+
+@if (lots.Any())
+{
+    <div class="list-group">
+        @foreach (var lot in lots)
+        {
+            <a href="/Home/Lot?catalogueId=@catalogueId&lotNo=@lot.lotNo" class="list-group-item mb-3 border border-light rounded shadow-sm">
+                <div class="row">
+                    <div class="col-md-3">
+                        @if (!string.IsNullOrEmpty(lot.lotImage))
+                        {
+                            <img src="@lot.lotImage" class="img-fluid rounded" style="max-height: 140px; object-fit: cover;" alt="Lot Image" />
+                        }
+                        else
+                        {
+                            <img src="https://cdn-icons-png.flaticon.com/128/9841/9841566.png" class="img-fluid rounded" style="max-height: 140px; object-fit: cover;" alt="No Image" />
+                        }
+                    </div>
+                    <div class="col-md-6">
+                        <h4 class="mt-2">Lot @lot.lotNo - @lot.lotTitle</h4>
+                        <p class="text-primary fw-bold">Range: $@lot.minPrice - $@lot.maxPrice</p>
+                        <p class="text-muted mb-1">
+                            @((lot.lotDescription != null && lot.lotDescription.Length > 100)
+                                ? lot.lotDescription.Substring(0, 100) + "..."
+                                : lot.lotDescription)
+                        </p>
+                    </div>
+                    <div class="col-md-3 text-end align-self-center">
+                        @{
+                            var isSold = lot.salePrice != null && lot.bidderID != null;
+                            var isPassed = lot.salePrice == null && lot.bidderID == null && ((DateTime)catalogue.dateVisible) < DateTime.Now;
+                        }
+                        @if (isSold)
+                        {
+                            <span class="badge bg-danger p-2">SOLD: $@lot.salePrice</span>
+                        }
+                        else if (isPassed)
+                        {
+                            <span class="badge bg-warning text-dark p-2">PASSED IN</span>
+                        }
+                        else
+                        {
+                            
+                        }
+                    </div>
+                </div>
+            </a>
+        }
+    </div>
+}
+else
+{
+    <p>No lots available in this catalogue.</p>
+}

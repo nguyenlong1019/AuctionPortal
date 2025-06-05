@@ -13,16 +13,17 @@ namespace AuctionPortal.Controllers
             return View();
         }
 
-        public ActionResult Catalogue()
+        public ActionResult Catalogue(int catalogueId)
         {
-            ViewBag.Message = "Your application description page.";
+            ViewBag.CatalogueId = catalogueId;
 
             return View();
         }
 
-        public ActionResult Lot()
+        public ActionResult Lot(int catalogueId, int lotNo)
         {
-            ViewBag.Message = "Your contact page.";
+            ViewBag.CatalogueId = catalogueId;
+            ViewBag.lotNo = lotNo;
 
             return View();
         }

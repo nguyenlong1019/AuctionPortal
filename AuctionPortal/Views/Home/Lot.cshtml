@@ -2,4 +2,31 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-
+@using WebMatrix.Data;
+@{
+    var db = Database.Open("AuctionDB");
+    var catalogueId = Request["catalogueID"];
+    var lotNo = Request["lotNo"];
+    var catalogue = db.QuerySingle("SELECT catName, dateVisible FROM Catalogues WHERE catalogueID = @0", catalogueId);
+    var search = Request["search"];
+    var lots = Enumerable.Empty<dynamic>();
+    if (!string.IsNullOrEmpty(search))
+    {
+        lots = db.Query(@"
+SELECT l.lotNo, l.lotTitle, l.lotDescription, l.minPrice, l.maxPrice, l.salePrice, l.bidderID,
+(SELECT TOP 1 imageUrl FROM LotImages i WHERE i.catalogueID = l.catalogueID AND i.lotNo = l.lotNo) AS lotImage
+FROM Lots l
+WHERE l.catalogueID = @0
+AND (LOWER(l.lotTitle) LIKE @1 OR LOWER(l.lotDescription) LIKE @1)
+ORDER BY l.lotNo", catalogueId, "%" + search.ToLower() + "%");
+    }
+    else
+    {
+        lots = db.Query(@"
+SELECT l.lotNo, l.lotTitle, l.lotDescription, l.minPrice, l.maxPrice, l.salePrice, l.bidderID,
+(SELECT TOP 1 imageUrl FROM LotImages i WHERE i.catalogueID = l.catalogueID AND i.lotNo = l.lotNo) AS lotImage
+FROM Lots l
+WHERE l.catalogueID = @0
+ORDER BY l.lotNo", catalogueId);
+    }
+}
